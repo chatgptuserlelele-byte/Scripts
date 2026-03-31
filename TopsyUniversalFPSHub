@@ -259,3 +259,117 @@ local Toggle = ESPTab:CreateToggle({
        end
    end,
 })
+local ColorPicker = ESPTab:CreateColorPicker({
+    Name = "ESP Color",
+    Color = Color3.fromRGB(255, 255, 255), -- Defaulting to Red to match your ESP
+    Flag = "ESPFillColor1", 
+    Callback = function(Value)
+        -- The function that takes place every time the color picker is moved/changed
+        -- The variable (Value) is a Color3fromRGB value based on which color is selected
+        
+        _G.ESP_Fill_Color = Value -- Update the global setting
+        
+        -- Update all existing ESP highlights immediately
+        local Players = game:GetService("Players")
+        for _, player in ipairs(Players:GetPlayers()) do
+            if player.Character then
+                local highlight = player.Character:FindFirstChild("ESPHighlight")
+                if highlight and highlight:IsA("Highlight") then
+                    highlight.FillColor = Value
+                end
+            end
+        end
+    end
+})
+local Toggle = ESPTab:CreateToggle({
+   Name = "Toggle Tracers",
+   CurrentValue = false,
+   Flag = "TracersToggle1", 
+   Callback = function(Value)
+       _G.TracersEnabled = Value
+       
+       local Players = game:GetService("Players")
+       local LocalPlayer = Players.LocalPlayer
+       local Camera = workspace.CurrentCamera
+       local RunService = game:GetService("RunService")
+       
+       -- Table to store the lines for each player
+       _G.TracerLines = _G.TracerLines or {}
+
+       local function createTracer(player)
+           if _G.TracerLines[player] then return end -- Already exists
+           
+           local line = Drawing.new("Line")
+           line.Visible = false
+           line.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y) -- Bottom center of screen
+           line.Thickness = 1
+           line.Transparency = 1
+           line.Color = _G.ESP_Fill_Color or Color3.fromRGB(255, 0, 0) -- Syncs with your ESP Color Picker
+           
+           _G.TracerLines[player] = line
+       end
+
+       if Value then
+           -- Setup for existing players
+           for _, player in ipairs(Players:GetPlayers()) do
+               if player ~= LocalPlayer then
+                   createTracer(player)
+               end
+           end
+           
+           -- Connection to keep lines updated
+           RunService:BindToRenderStep("TracerLoop", 200, function()
+               if not _G.TracersEnabled then 
+                   RunService:UnbindFromRenderStep("TracerLoop")
+                   return 
+               end
+
+               for player, line in pairs(_G.TracerLines) do
+                   if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
+                       local hrp = player.Character.HumanoidRootPart
+                       local screenPoint, onScreen = Camera:WorldToViewportPoint(hrp.Position)
+
+                       if onScreen then
+                           line.To = Vector2.new(screenPoint.X, screenPoint.Y)
+                           line.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
+                           line.Color = _G.ESP_Fill_Color or Color3.fromRGB(255, 0, 0)
+                           line.Visible = true
+                       else
+                           line.Visible = false
+                       end
+                   else
+                       line.Visible = false
+                   end
+               end
+           end)
+       else
+           -- Clean up when toggled OFF
+           RunService:UnbindFromRenderStep("TracerLoop")
+           for player, line in pairs(_G.TracerLines) do
+               line.Visible = false
+               line:Remove()
+           end
+           _G.TracerLines = {}
+       end
+   end,
+})
+local ColorPicker = ESPTab:CreateColorPicker({
+    Name = "Tracer Color",
+    Color = Color3.fromRGB(255, 255, 255),
+    Flag = "TracerColorPicker1", 
+    Callback = function(Value)
+        -- The function that takes place every time the color picker is moved/changed
+        -- The variable (Value) is a Color3fromRGB value based on which color is selected
+        
+        _G.Tracer_Color = Value -- Update the global variable for the loop
+        
+        -- Immediately update all active tracer lines
+        if _G.TracerLines then
+            for _, line in pairs(_G.TracerLines) do
+                if line then
+                    line.Color = Value
+                end
+            end
+        end
+    end
+})
