@@ -46,89 +46,109 @@ Rayfield:Notify({
    Image = nil,
 })
 local Toggle = AimbotTab:CreateToggle({
-    Name = "Aimbot",
-    CurrentValue = false,
-    Flag = "AimbotToggle1", 
-    Callback = function(Value)
-        _G.AimbotEnabled = Value
+   Name = "Aimbot",
+   CurrentValue = false,
+   Flag = "AimbotTogglePC", 
+   Callback = function(Value)
+       -- The variable (Value) is a boolean on whether the toggle is true or false
+       _G.AimbotEnabled = Value
 
-        local Players = game:GetService("Players")
-        local LocalPlayer = Players.LocalPlayer
-        local RunService = game:GetService("RunService")
-        local Camera = workspace.CurrentCamera
+       local Players = game:GetService("Players")
+       local LocalPlayer = Players.LocalPlayer
+       local RunService = game:GetService("RunService")
+       local Camera = workspace.CurrentCamera
 
-        -- FOV CIRCLE LOGIC
-        if Value then
-            -- Create the circle if it doesn't exist
-            if not _G.FOVCircleObject then
-                _G.FOVCircleObject = Drawing.new("Circle")
-                _G.FOVCircleObject.Thickness = 2
-                _G.FOVCircleObject.NumSides = 100
-                _G.FOVCircleObject.Filled = false -- Hollow middle
-                _G.FOVCircleObject.Transparency = 1
-            end
-            _G.FOVCircleObject.Visible = true
-        else
-            -- Hide/Destroy the circle when toggled off
-            if _G.FOVCircleObject then
-                _G.FOVCircleObject.Visible = false
-            end
-        end
+       -- 1. PC COMPATIBLE FOV CIRCLE (No Drawing.new)
+       if Value then
+           if not _G.PC_FOV_Gui then
+               local ScreenGui = Instance.new("ScreenGui")
+               ScreenGui.Name = "TopsyFOV"
+               ScreenGui.Parent = game:GetService("CoreGui")
+               ScreenGui.IgnoreGuiInset = true
+               
+               local FOVFrame = Instance.new("Frame")
+               FOVFrame.Name = "FOVFrame"
+               FOVFrame.Parent = ScreenGui
+               FOVFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+               FOVFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+               FOVFrame.BackgroundTransparency = 1 -- Hollow Middle
+               FOVFrame.BorderSizePixel = 0
+               
+               local UICorner = Instance.new("UICorner")
+               UICorner.CornerRadius = UDim.new(1, 0) -- Makes it a circle
+               UICorner.Parent = FOVFrame
+               
+               local UIStroke = Instance.new("UIStroke")
+               UIStroke.Thickness = 1.5
+               UIStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+               UIStroke.Parent = FOVFrame
+               
+               _G.PC_FOV_Gui = ScreenGui
+               _G.PC_FOV_Frame = FOVFrame
+               _G.PC_FOV_Stroke = UIStroke
+           end
+           _G.PC_FOV_Frame.Visible = true
+       else
+           if _G.PC_FOV_Frame then
+               _G.PC_FOV_Frame.Visible = false
+           end
+       end
 
-        -- Function to find the closest player to your crosshair
-        local function getClosestPlayer()
-            local closestPlayer = nil
-            local shortestDistance = math.huge
+       -- 2. TARGETING LOGIC
+       local function getClosestPlayer()
+           local closestPlayer = nil
+           local shortestDistance = math.huge
 
-            for _, player in ipairs(Players:GetPlayers()) do
-                if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Head") then
-                    local head = player.Character.Head
-                    local screenPoint, onScreen = Camera:WorldToViewportPoint(head.Position)
+           for _, player in ipairs(Players:GetPlayers()) do
+               if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Head") then
+                   local head = player.Character.Head
+                   local screenPoint, onScreen = Camera:WorldToViewportPoint(head.Position)
 
-                    if onScreen then
-                        local mousePos = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
-                        local distance = (Vector2.new(screenPoint.X, screenPoint.Y) - mousePos).Magnitude
+                   if onScreen then
+                       local mousePos = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+                       local distance = (Vector2.new(screenPoint.X, screenPoint.Y) - mousePos).Magnitude
 
-                        -- Respect the FOV Slider value (defaults to 100 if not set)
-                        if distance < (_G.AimbotFOV or 100) then
-                            if distance < shortestDistance then
-                                closestPlayer = player
-                                shortestDistance = distance
-                            end
-                        end
-                    end
-                end
-            end
-            return closestPlayer
-        end
+                       -- Checks against the Slider value
+                       if distance < (_G.AimbotFOV or 100) then
+                           if distance < shortestDistance then
+                               closestPlayer = player
+                               shortestDistance = distance
+                           end
+                       end
+                   end
+               end
+           end
+           return closestPlayer
+       end
 
-        -- The actual Aimbot + FOV Loop
-        RunService:BindToRenderStep("AimbotLoop", Enum.RenderPriority.Camera.Value, function()
-            if _G.AimbotEnabled then
-                -- 1. Update FOV Circle Visuals
-                if _G.FOVCircleObject then
-                    _G.FOVCircleObject.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
-                    _G.FOVCircleObject.Radius = _G.AimbotFOV or 100
-                    _G.FOVCircleObject.Color = _G.FOV_Circle_Color or Color3.fromRGB(255, 255, 255)
-                end
+       -- 3. THE LOOP
+       RunService:BindToRenderStep("AimbotLoop", Enum.RenderPriority.Camera.Value, function()
+           if _G.AimbotEnabled then
+               -- Update FOV Visuals
+               if _G.PC_FOV_Frame then
+                   local center = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+                   _G.PC_FOV_Frame.Position = UDim2.new(0, center.X, 0, center.Y)
+                   
+                   local size = (_G.AimbotFOV or 100) * 2
+                   _G.PC_FOV_Frame.Size = UDim2.new(0, size, 0, size)
+                   _G.PC_FOV_Stroke.Color = _G.FOV_Circle_Color or Color3.fromRGB(255, 255, 255)
+               end
 
-                -- 2. Handle Aiming
-                local targetPlayer = getClosestPlayer()
-                if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("Head") then
-                    Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPlayer.Character.Head.Position)
-                end
-            else
-                -- Stop the loop and hide circle if toggle is off
-                if _G.FOVCircleObject then _G.FOVCircleObject.Visible = false end
-                RunService:UnbindFromRenderStep("AimbotLoop")
-            end
-        end)
+               -- Aim at target
+               local target = getClosestPlayer()
+               if target and target.Character and target.Character:FindFirstChild("Head") then
+                   Camera.CFrame = CFrame.new(Camera.CFrame.Position, target.Character.Head.Position)
+               end
+           else
+               if _G.PC_FOV_Frame then _G.PC_FOV_Frame.Visible = false end
+               RunService:UnbindFromRenderStep("AimbotLoop")
+           end
+       end)
 
-        if not Value then
-            if _G.FOVCircleObject then _G.FOVCircleObject.Visible = false end
-            RunService:UnbindFromRenderStep("AimbotLoop")
-        end
-    end,
+       if not Value then
+           RunService:UnbindFromRenderStep("AimbotLoop")
+       end
+   end,
 })
 local Slider = AimbotTab:CreateSlider({
    Name = "FOV Size",
@@ -282,74 +302,75 @@ local ColorPicker = ESPTab:CreateColorPicker({
     end
 })
 local Toggle = ESPTab:CreateToggle({
-   Name = "Enable Tracers",
+   Name = "Toggle Tracers",
    CurrentValue = false,
-   Flag = "TracersToggle1", 
+   Flag = "TracersTogglePC", 
    Callback = function(Value)
+       -- The variable (Value) is a boolean on whether the toggle is true or false
        _G.TracersEnabled = Value
-       
+
        local Players = game:GetService("Players")
        local LocalPlayer = Players.LocalPlayer
-       local Camera = workspace.CurrentCamera
        local RunService = game:GetService("RunService")
-       
-       -- Table to store the lines for each player
-       _G.TracerLines = _G.TracerLines or {}
+       local Camera = workspace.CurrentCamera
 
-       local function createTracer(player)
-           if _G.TracerLines[player] then return end -- Already exists
+       -- Function to create/update the tracer frame
+       local function updateTracer(player)
+           if not _G.TracersEnabled then return end
+           if not player.Character or not player.Character:FindFirstChild("HumanoidRootPart") then return end
+
+           local hrp = player.Character.HumanoidRootPart
+           local screenPoint, onScreen = Camera:WorldToViewportPoint(hrp.Position)
+
+           local tracerName = "Tracer_" .. player.Name
+           local screenGui = game:GetService("CoreGui"):FindFirstChild("TopsyTracers")
            
-           local line = Drawing.new("Line")
-           line.Visible = false
-           line.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y) -- Bottom center of screen
-           line.Thickness = 2
-           line.Transparency = 1
-           line.Color = _G.ESP_Fill_Color or Color3.fromRGB(255, 255, 255) -- Syncs with your ESP Color Picker
-           
-           _G.TracerLines[player] = line
+           if not screenGui then
+               screenGui = Instance.new("ScreenGui")
+               screenGui.Name = "TopsyTracers"
+               screenGui.Parent = game:GetService("CoreGui")
+               screenGui.IgnoreGuiInset = true
+           end
+
+           local frame = screenGui:FindFirstChild(tracerName)
+           if not frame and onScreen then
+               frame = Instance.new("Frame")
+               frame.Name = tracerName
+               frame.Parent = screenGui
+               frame.BorderSizePixel = 0
+               frame.AnchorPoint = Vector2.new(0.5, 0)
+           end
+
+           if onScreen and frame then
+               local startPos = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y) -- Bottom Middle
+               local endPos = Vector2.new(screenPoint.X, screenPoint.Y)
+               local distance = (endPos - startPos).Magnitude
+               local angle = math.atan2(endPos.Y - startPos.Y, endPos.X - startPos.X)
+
+               frame.Visible = true
+               frame.Size = UDim2.new(0, 1.5, 0, distance) -- Thickness of 1.5
+               frame.Position = UDim2.new(0, startPos.X, 0, startPos.Y)
+               frame.Rotation = math.deg(angle) - 90
+               frame.BackgroundColor3 = _G.Tracer_Color or Color3.fromRGB(255, 255, 255)
+           elseif frame then
+               frame.Visible = false
+           end
        end
 
+       -- THE LOOP
        if Value then
-           -- Setup for existing players
-           for _, player in ipairs(Players:GetPlayers()) do
-               if player ~= LocalPlayer then
-                   createTracer(player)
-               end
-           end
-           
-           -- Connection to keep lines updated
-           RunService:BindToRenderStep("TracerLoop", 200, function()
-               if not _G.TracersEnabled then 
-                   RunService:UnbindFromRenderStep("TracerLoop")
-                   return 
-               end
-
-               for player, line in pairs(_G.TracerLines) do
-                   if player.Character and player.Character:FindFirstChild("HumanoidRootPart") then
-                       local hrp = player.Character.HumanoidRootPart
-                       local screenPoint, onScreen = Camera:WorldToViewportPoint(hrp.Position)
-
-                       if onScreen then
-                           line.To = Vector2.new(screenPoint.X, screenPoint.Y)
-                           line.From = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y)
-                           line.Color = _G.ESP_Fill_Color or Color3.fromRGB(255, 0, 0)
-                           line.Visible = true
-                       else
-                           line.Visible = false
-                       end
-                   else
-                       line.Visible = false
+           RunService:BindToRenderStep("TracerLoopPC", 200, function()
+               for _, player in ipairs(Players:GetPlayers()) do
+                   if player ~= LocalPlayer then
+                       updateTracer(player)
                    end
                end
            end)
        else
-           -- Clean up when toggled OFF
-           RunService:UnbindFromRenderStep("TracerLoop")
-           for player, line in pairs(_G.TracerLines) do
-               line.Visible = false
-               line:Remove()
-           end
-           _G.TracerLines = {}
+           -- CLEANUP
+           RunService:UnbindFromRenderStep("TracerLoopPC")
+           local screenGui = game:GetService("CoreGui"):FindFirstChild("TopsyTracers")
+           if screenGui then screenGui:Destroy() end
        end
    end,
 })
