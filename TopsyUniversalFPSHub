@@ -45,61 +45,75 @@ Rayfield:Notify({
    Duration = 5,
    Image = nil,
 })
-local Button = AimbotTab:CreateButton({
-   Name = "ESP",
-   Callback = function()
-  local Players = game:GetService("Players")
-local LocalPlayer = Players.LocalPlayer
+local Toggle = Tab:CreateToggle({
+    Name = "Toggle ESP",
+    CurrentValue = false,
+    Flag = "Toggle1", 
+    Callback = function(Value)
+        _G.ESP_Enabled = Value -- Global variable to control the loop
 
-local function applyESP(character)
-	if not character or character == LocalPlayer.Character then return end
-	
-	local head = character:WaitForChild("Head", 10)
-	if not head then return end
+        -- Standard ESP Logic
+        local Players = game:GetService("Players")
+        local LocalPlayer = Players.LocalPlayer
 
-	-- 1. THE HIGHLIGHT (The "Glow")
-	if not character:FindFirstChild("ESPHighlight") then
-		local highlight = Instance.new("Highlight")
-		highlight.Name = "ESPHighlight"
-		highlight.Parent = character
-		highlight.FillColor = Color3.fromRGB(255, 0, 0) -- Red
-		highlight.OutlineColor = Color3.fromRGB(255, 255, 255) -- White Outline
-		highlight.FillTransparency = 0.5
-		highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-	end
+        local function applyESP(character)
+            -- Only run if the toggle is actually ON
+            if not _G.ESP_Enabled then return end
+            if not character or character == LocalPlayer.Character then return end
 
-	-- 2. THE NAME TAG (The "Username")
-	if not head:FindFirstChild("ESPNameTag") then
-		local player = Players:GetPlayerFromCharacter(character)
-		
-		local billboard = Instance.new("BillboardGui")
-		billboard.Name = "ESPNameTag"
-		billboard.Parent = head
-		billboard.Size = UDim2.new(0, 200, 0, 50)
-		billboard.StudsOffset = Vector3.new(0, 3, 0) -- Position above head
-		billboard.AlwaysOnTop = true -- Vital for wallhacks
-		
-		local label = Instance.new("TextLabel")
-		label.Parent = billboard
-		label.Size = UDim2.new(1, 0, 1, 0)
-		label.BackgroundTransparency = 1
-		label.Text = player.DisplayName or player.Name
-		label.TextColor3 = Color3.fromRGB(255, 255, 255)
-		label.TextStrokeTransparency = 0 -- Makes text easier to read
-		label.TextScaled = true
-		label.Font = Enum.Font.GothamBold
-	end
-end
+            local head = character:WaitForChild("Head", 10)
+            if not head then return end
 
--- Setup for existing and new players
-local function setupPlayer(player)
-	player.CharacterAdded:Connect(applyESP)
-	if player.Character then applyESP(player.Character) end
-end
+            -- 1. THE HIGHLIGHT (The "Glow")
+            if not character:FindFirstChild("ESPHighlight") then
+                local highlight = Instance.new("Highlight")
+                highlight.Name = "ESPHighlight"
+                highlight.Parent = character
+                highlight.FillColor = Color3.fromRGB(255, 0, 0)
+                highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+                highlight.FillTransparency = 0.5
+                highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+            end
 
-Players.PlayerAdded:Connect(setupPlayer)
-for _, player in ipairs(Players:GetPlayers()) do
-	setupPlayer(player)
-end
-   end,
+            -- 2. THE NAME TAG (The "Username")
+            if not head:FindFirstChild("ESPNameTag") then
+                local player = Players:GetPlayerFromCharacter(character)
+                local billboard = Instance.new("BillboardGui")
+                billboard.Name = "ESPNameTag"
+                billboard.Parent = head
+                billboard.Size = UDim2.new(0, 200, 0, 50)
+                billboard.StudsOffset = Vector3.new(0, 3, 0)
+                billboard.AlwaysOnTop = true
+                
+                local label = Instance.new("TextLabel")
+                label.Parent = billboard
+                label.Size = UDim2.new(1, 0, 1, 0)
+                label.BackgroundTransparency = 1
+                label.Text = player.DisplayName or player.Name
+                label.TextColor3 = Color3.fromRGB(255, 255, 255)
+                label.TextStrokeTransparency = 0
+                label.TextScaled = true
+                label.Font = Enum.Font.GothamBold
+            end
+        end
+
+        if _G.ESP_Enabled then
+            -- RUN ESP
+            for _, player in ipairs(Players:GetPlayers()) do
+                player.CharacterAdded:Connect(applyESP)
+                if player.Character then applyESP(player.Character) end
+            end
+        else
+            -- CLEAN UP (Remove ESP when toggled off)
+            for _, player in ipairs(Players:GetPlayers()) do
+                if player.Character then
+                    local h = player.Character:FindFirstChild("ESPHighlight")
+                    if h then h:Destroy() end
+                    if player.Character:FindFirstChild("Head") and player.Character.Head:FindFirstChild("ESPNameTag") then
+                        player.Character.Head.ESPNameTag:Destroy()
+                    end
+                end
+            end
+        end
+    end,
 })
