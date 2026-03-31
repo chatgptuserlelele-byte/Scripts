@@ -45,68 +45,91 @@ Rayfield:Notify({
    Duration = 5,
    Image = nil,
 })
-local Toggle = AimbotTab:CreateToggle({
-   Name = "Toggle ESP",
-   CurrentValue = false,
-   Flag = "Toggle1", -- A flag is the identifier for the configuration file; make sure every element has a different flag if you're using configuration saving to ensure no overlaps
-   Callback = function(Value)
-   ESP_Active = Value -- 'Value' comes from your toggle's callback
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
 
-local function applyESP(character)
-    if not ESP_Active or not character or character == LocalPlayer.Character then return end
-    
-    local head = character:WaitForChild("Head", 10)
-    if not head then return end
+local ESPEnabled = false
+local ESPObjects = {}
 
-    -- 1. Red Glow (Highlight)
-    if not character:FindFirstChild("ESPHighlight") then
+-- Create ESP for a player
+local function CreateESP(player)
+    if player == LocalPlayer then return end
+
+    local function onCharacter(char)
+        if not ESPEnabled then return end
+
+        -- Highlight
         local highlight = Instance.new("Highlight")
-        highlight.Name = "ESPHighlight"
-        highlight.Parent = character
         highlight.FillColor = Color3.fromRGB(255, 0, 0)
-        highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+        highlight.OutlineColor = Color3.fromRGB(255, 0, 0)
         highlight.FillTransparency = 0.5
-        highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-    end
+        highlight.OutlineTransparency = 0
+        highlight.Adornee = char
+        highlight.Parent = char
 
-    -- 2. Small Name Tag
-    if not head:FindFirstChild("ESPNameTag") then
-        local player = Players:GetPlayerFromCharacter(character)
-        local billboard = Instance.new("BillboardGui", head)
-        billboard.Name = "ESPNameTag"
-        billboard.Size = UDim2.new(0, 80, 0, 20) -- Small container
+        -- Billboard GUI (Name above head)
+        local head = char:WaitForChild("Head", 5)
+        if not head then return end
+
+        local billboard = Instance.new("BillboardGui")
+        billboard.Size = UDim2.new(0, 100, 0, 30)
         billboard.StudsOffset = Vector3.new(0, 2, 0)
         billboard.AlwaysOnTop = true
-        
-        local label = Instance.new("TextLabel", billboard)
+        billboard.Parent = head
+
+        local label = Instance.new("TextLabel")
         label.Size = UDim2.new(1, 0, 1, 0)
         label.BackgroundTransparency = 1
-        label.Text = player.DisplayName or player.Name
-        label.TextColor3 = Color3.fromRGB(255, 255, 255)
-        label.TextStrokeTransparency = 0.4
-        label.TextSize = 10 -- Sharp, small text
-        label.Font = Enum.Font.GothamBold
+        label.TextColor3 = Color3.fromRGB(255, 0, 0)
+        label.TextStrokeTransparency = 0.5
+        label.TextScaled = true
+        label.Font = Enum.Font.SourceSansBold
+        label.Text = player.DisplayName .. " (@" .. player.Name .. ")"
+        label.Parent = billboard
+
+        -- Store for cleanup
+        ESPObjects[player] = {
+            Highlight = highlight,
+            Billboard = billboard
+        }
     end
+
+    if player.Character then
+        onCharacter(player.Character)
+    end
+
+    player.CharacterAdded:Connect(onCharacter)
 end
 
-if ESP_Active then
-    -- Turn ON: Apply to current players and setup respawn listeners
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player.Character then applyESP(player.Character) end
-        player.CharacterAdded:Connect(applyESP)
+-- Remove ESP
+local function RemoveESP()
+    for _, objs in pairs(ESPObjects) do
+        if objs.Highlight then objs.Highlight:Destroy() end
+        if objs.Billboard then objs.Billboard:Destroy() end
     end
-else
-    -- Turn OFF: Remove all ESP objects immediately
-    for _, player in ipairs(Players:GetPlayers()) do
-        if player.Character then
-            local h = player.Character:FindFirstChild("ESPHighlight")
-            if h then h:Destroy() end
-            local head = player.Character:FindFirstChild("Head")
-            if head and head:FindFirstChild("ESPNameTag") then
-                head.ESPNameTag:Destroy()
-            end
-        end
-    end
+    ESPObjects = {}
 end
+
+-- Toggle (Rayfield)
+local Toggle = AimbotTab:CreateToggle({
+   Name = "Player ESP",
+   CurrentValue = false,
+   Flag = "PlayerESP",
+   Callback = function(Value)
+       ESPEnabled = Value
+
+       if Value then
+           for _, player in pairs(Players:GetPlayers()) do
+               CreateESP(player)
+           end
+
+           Players.PlayerAdded:Connect(function(player)
+               if ESPEnabled then
+                   CreateESP(player)
+               end
+           end)
+       else
+           RemoveESP()
+       end
    end,
 })
