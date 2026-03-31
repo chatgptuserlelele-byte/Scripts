@@ -48,73 +48,86 @@ Rayfield:Notify({
 local Button = AimbotTab:CreateButton({
    Name = "Enable ESP",
    Callback = function()
- local function applyESP(character)
-	if not character or character == LocalPlayer.Character then return end
-	
-	local head = character:WaitForChild("Head", 10)
-	if not head then return end
+   local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
 
-	-- 1. THE HIGHLIGHT (The "Glow")
-	if not character:FindFirstChild("ESPHighlight") then
-		local highlight = Instance.new("Highlight")
-		highlight.Name = "ESPHighlight"
-		highlight.Parent = character
-		highlight.FillColor = Color3.fromRGB(255, 0, 0)
-		highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
-		highlight.FillTransparency = 0.5
-		highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
-	end
+local function applyESP(character)
+    if not character or character == LocalPlayer.Character then return end
+    
+    local head = character:WaitForChild("Head", 10)
+    if not head then return end
 
-	-- 2. THE NAME TAG (Small & Sharp)
-	if not head:FindFirstChild("ESPNameTag") then
-		local player = Players:GetPlayerFromCharacter(character)
-		
-		local billboard = Instance.new("BillboardGui")
-		billboard.Name = "ESPNameTag"
-		billboard.Parent = head
-		billboard.Size = UDim2.new(0, 100, 0, 20) -- Shrunk box
-		billboard.StudsOffset = Vector3.new(0, 2.5, 0) -- Adjusted height
-		billboard.AlwaysOnTop = true
-		
-		local label = Instance.new("TextLabel")
-		label.Parent = billboard
-		label.Size = UDim2.new(1, 0, 1, 0)
-		label.BackgroundTransparency = 1
-		label.Text = player.DisplayName or player.Name
-		label.TextColor3 = Color3.fromRGB(255, 255, 255)
-		label.TextStrokeTransparency = 0.5
-		label.TextSize = 12 -- Fixed small size (not scaled)
-		label.Font = Enum.Font.GothamBold
-	end
+    -- 1. THE HIGHLIGHT (The "Glow")
+    if not character:FindFirstChild("ESPHighlight") then
+        local highlight = Instance.new("Highlight")
+        highlight.Name = "ESPHighlight"
+        highlight.Parent = character
+        highlight.FillColor = Color3.fromRGB(255, 0, 0)
+        highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+        highlight.FillTransparency = 0.5
+        highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+    end
+
+    -- 2. THE NAME TAG (Small & Sharp)
+    if not head:FindFirstChild("ESPNameTag") then
+        local player = Players:GetPlayerFromCharacter(character)
+        
+        local billboard = Instance.new("BillboardGui")
+        billboard.Name = "ESPNameTag"
+        billboard.Parent = head
+        billboard.Size = UDim2.new(0, 100, 0, 20) -- Shrunk container size
+        billboard.StudsOffset = Vector3.new(0, 2.5, 0) -- Closer to the head
+        billboard.AlwaysOnTop = true 
+        
+        local label = Instance.new("TextLabel")
+        label.Parent = billboard
+        label.Size = UDim2.new(1, 0, 1, 0)
+        label.BackgroundTransparency = 1
+        label.Text = player.DisplayName or player.Name
+        label.TextColor3 = Color3.fromRGB(255, 255, 255)
+        label.TextStrokeTransparency = 0.5 -- Subtle outline
+        label.TextSize = 12 -- FIXED SMALL SIZE (No scaling)
+        label.Font = Enum.Font.GothamBold
+    end
 end
+
+-- Setup for existing and new players
+local function setupPlayer(player)
+    player.CharacterAdded:Connect(applyESP)
+    if player.Character then applyESP(player.Character) end
+end
+
+Players.PlayerAdded:Connect(setupPlayer)
+for _, player in ipairs(Players:GetPlayers()) do
+    setupPlayer(player)
+end
+            
    end,
 })
-local Button = Tab:CreateButton({
+local Button = AimbotTab:CreateButton({
    Name = "Disable ESP",
    Callback = function()
-   -- Disable function to clean up everything
-local function disableESP()
-    -- 1. Remove from all current players
-    for _, player in ipairs(game:GetService("Players"):GetPlayers()) do
-        if player.Character then
-            -- Remove Highlight
-            local highlight = player.Character:FindFirstChild("ESPHighlight")
-            if highlight then highlight:Destroy() end
-            
-            -- Remove NameTag
-            local head = player.Character:FindFirstChild("Head")
-            if head then
-                local tag = head:FindFirstChild("ESPNameTag")
-                if tag then tag:Destroy() end
+   local Players = game:GetService("Players")
+
+for _, player in ipairs(Players:GetPlayers()) do
+    if player.Character then
+        -- Remove the Glow
+        local highlight = player.Character:FindFirstChild("ESPHighlight")
+        if highlight then
+            highlight:Destroy()
+        end
+        
+        -- Remove the Name Tag
+        local head = player.Character:FindFirstChild("Head")
+        if head then
+            local tag = head:FindFirstChild("ESPNameTag")
+            if tag then
+                tag:Destroy()
             end
         end
     end
-    
-    -- 2. (Optional) If you are using this inside a toggle, 
-    -- you would set a variable like 'ESP_Enabled = false' 
-    -- here to stop the 'CharacterAdded' connections from firing.
 end
 
-disableESP() -- Run this to clear the screen
+print("ESP Disabled and Cleaned")
    end,
 })
