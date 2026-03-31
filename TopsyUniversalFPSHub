@@ -46,62 +46,89 @@ Rayfield:Notify({
    Image = nil,
 })
 local Toggle = AimbotTab:CreateToggle({
-   Name = "Aimbot",
-   CurrentValue = false,
-   Flag = "AimbotToggle1", 
-   Callback = function(Value)
-       -- The variable (Value) is a boolean on whether the toggle is true or false
-       _G.AimbotEnabled = Value
+    Name = "Aimbot",
+    CurrentValue = false,
+    Flag = "AimbotToggle1", 
+    Callback = function(Value)
+        _G.AimbotEnabled = Value
 
-       local Players = game:GetService("Players")
-       local LocalPlayer = Players.LocalPlayer
-       local RunService = game:GetService("RunService")
-       local Camera = workspace.CurrentCamera
+        local Players = game:GetService("Players")
+        local LocalPlayer = Players.LocalPlayer
+        local RunService = game:GetService("RunService")
+        local Camera = workspace.CurrentCamera
 
-       -- Function to find the closest player to your crosshair
-       local function getClosestPlayer()
-           local closestPlayer = nil
-           local shortestDistance = math.huge
+        -- FOV CIRCLE LOGIC
+        if Value then
+            -- Create the circle if it doesn't exist
+            if not _G.FOVCircleObject then
+                _G.FOVCircleObject = Drawing.new("Circle")
+                _G.FOVCircleObject.Thickness = 1.5
+                _G.FOVCircleObject.NumSides = 100
+                _G.FOVCircleObject.Filled = false -- Hollow middle
+                _G.FOVCircleObject.Transparency = 1
+            end
+            _G.FOVCircleObject.Visible = true
+        else
+            -- Hide/Destroy the circle when toggled off
+            if _G.FOVCircleObject then
+                _G.FOVCircleObject.Visible = false
+            end
+        end
 
-           for _, player in ipairs(Players:GetPlayers()) do
-               if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Head") then
-                   local head = player.Character.Head
-                   local screenPoint, onScreen = Camera:WorldToViewportPoint(head.Position)
+        -- Function to find the closest player to your crosshair
+        local function getClosestPlayer()
+            local closestPlayer = nil
+            local shortestDistance = math.huge
 
-                   if onScreen then
-                       -- Calculate distance from mouse/center of screen
-                       local mousePos = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
-                       local distance = (Vector2.new(screenPoint.X, screenPoint.Y) - mousePos).Magnitude
+            for _, player in ipairs(Players:GetPlayers()) do
+                if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Head") then
+                    local head = player.Character.Head
+                    local screenPoint, onScreen = Camera:WorldToViewportPoint(head.Position)
 
-                       if distance < shortestDistance then
-                           closestPlayer = player
-                           shortestDistance = distance
-                       end
-                   end
-               end
-           end
-           return closestPlayer
-       end
+                    if onScreen then
+                        local mousePos = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+                        local distance = (Vector2.new(screenPoint.X, screenPoint.Y) - mousePos).Magnitude
 
-       -- The actual Aimbot Loop
-       RunService:BindToRenderStep("AimbotLoop", Enum.RenderPriority.Camera.Value, function()
-           if _G.AimbotEnabled then
-               local targetPlayer = getClosestPlayer()
-               if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("Head") then
-                   -- Smoothly or instantly look at the head
-                   Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPlayer.Character.Head.Position)
-               end
-           else
-               -- Stop the loop if toggle is off
-               RunService:UnbindFromRenderStep("AimbotLoop")
-           end
-       end)
+                        -- Respect the FOV Slider value (defaults to 100 if not set)
+                        if distance < (_G.AimbotFOV or 100) then
+                            if distance < shortestDistance then
+                                closestPlayer = player
+                                shortestDistance = distance
+                            end
+                        end
+                    end
+                end
+            end
+            return closestPlayer
+        end
 
-       -- If toggle was turned off manually, make sure it unbinds
-       if not Value then
-           RunService:UnbindFromRenderStep("AimbotLoop")
-       end
-   end,
+        -- The actual Aimbot + FOV Loop
+        RunService:BindToRenderStep("AimbotLoop", Enum.RenderPriority.Camera.Value, function()
+            if _G.AimbotEnabled then
+                -- 1. Update FOV Circle Visuals
+                if _G.FOVCircleObject then
+                    _G.FOVCircleObject.Position = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
+                    _G.FOVCircleObject.Radius = _G.AimbotFOV or 100
+                    _G.FOVCircleObject.Color = _G.FOV_Circle_Color or Color3.fromRGB(255, 255, 255)
+                end
+
+                -- 2. Handle Aiming
+                local targetPlayer = getClosestPlayer()
+                if targetPlayer and targetPlayer.Character and targetPlayer.Character:FindFirstChild("Head") then
+                    Camera.CFrame = CFrame.new(Camera.CFrame.Position, targetPlayer.Character.Head.Position)
+                end
+            else
+                -- Stop the loop and hide circle if toggle is off
+                if _G.FOVCircleObject then _G.FOVCircleObject.Visible = false end
+                RunService:UnbindFromRenderStep("AimbotLoop")
+            end
+        end)
+
+        if not Value then
+            if _G.FOVCircleObject then _G.FOVCircleObject.Visible = false end
+            RunService:UnbindFromRenderStep("AimbotLoop")
+        end
+    end,
 })
 local Slider = AimbotTab:CreateSlider({
    Name = "FOV Size",
@@ -131,6 +158,31 @@ local ColorPicker = AimbotTab:CreateColorPicker({
             _G.FOVCircleObject.Color = Value
         end
     end
+})
+local Keybind = AimbotTab:CreateKeybind({
+   Name = "Toggle Aimbot Keybind",
+   CurrentKeybind = "Backquote", -- The ` key (usually below Escape)
+   HoldToInteract = false,
+   Flag = "AimbotKeybind1", 
+   Callback = function(Keybind)
+       -- The function that takes place when the keybind is pressed
+       
+       -- Flip the current state (If it's true, make it false; if false, make it true)
+       _G.AimbotEnabled = not _G.AimbotEnabled
+       
+       -- Notify the user so they know it toggled
+       Rayfield:Notify({
+          Title = "Aimbot Toggled",
+          Content = _G.AimbotEnabled and "Aimbot is now ON" or "Aimbot is now OFF",
+          Duration = 2,
+          Image = nil,
+       })
+
+       -- Sync the FOV Circle visibility
+       if _G.FOVCircleObject then
+           _G.FOVCircleObject.Visible = _G.AimbotEnabled
+       end
+   end,
 })
 local ESPTab = Window:CreateTab("ESP", nil) -- Title, Image
 local Toggle = ESPTab:CreateToggle({
