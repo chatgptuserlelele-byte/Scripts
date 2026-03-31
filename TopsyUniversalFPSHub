@@ -39,12 +39,10 @@ local Window = Rayfield:CreateWindow({
 
 local AimbotTab = Window:CreateTab("Aimbot", nil) -- Title, Image
 local AimbotSection = Tab:CreateSection("Aimbot")
-local Toggle = Tab:CreateToggle({
-   Name = "Toggle Example",
-   CurrentValue = false,
-   Flag = "Toggle1", -- A flag is the identifier for the configuration file; make sure every element has a different flag if you're using configuration saving to ensure no overlaps
-   Callback = function(Value)
-   local Players = game:GetService("Players")
+local Button = Tab:CreateButton({
+   Name = "Button Example",
+   Callback = function()
+  local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
 local function applyESP(character)
