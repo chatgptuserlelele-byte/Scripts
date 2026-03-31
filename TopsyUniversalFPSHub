@@ -1,0 +1,101 @@
+local Rayfield = loadstring(game:HttpGet('https://sirius.menu/rayfield'))()
+
+local Window = Rayfield:CreateWindow({
+   Name = "Topsy Universal FPS Hub",
+   Icon = 0, -- Icon in Topbar. Can use Lucide Icons (string) or Roblox Image (number). 0 to use no icon (default).
+   LoadingTitle = "Loading",
+   LoadingSubtitle = "by Topsy",
+   ShowText = "Rayfield", -- for mobile users to unhide Rayfield, change if you'd like
+   Theme = "Default", -- Check https://docs.sirius.menu/rayfield/configuration/themes
+
+   ToggleUIKeybind = "K", -- The keybind to toggle the UI visibility (string like "K" or Enum.KeyCode)
+
+   DisableRayfieldPrompts = false,
+   DisableBuildWarnings = false, -- Prevents Rayfield from emitting warnings when the script has a version mismatch with the interface.
+
+   ConfigurationSaving = {
+      Enabled = true,
+      FolderName = nil, -- Create a custom folder for your hub/game
+      FileName = "Topsy Universal FPS Hub"
+   },
+
+   Discord = {
+      Enabled = false, -- Prompt the user to join your Discord server if their executor supports it
+      Invite = "noinvitelink", -- The Discord invite code, do not include Discord.gg/. E.g. Discord.gg/ABCD would be ABCD
+      RememberJoins = true -- Set this to false to make them join the Discord every time they load it up
+   },
+
+   KeySystem = false, -- Set this to true to use our key system
+   KeySettings = {
+      Title = "Topsy Universal FPS Hub",
+      Subtitle = "Key System",
+      Note = "This script is currently private please contact me to get the key", -- Use this to tell the user how to get a key
+      FileName = "Key", -- It is recommended to use something unique, as other scripts using Rayfield may overwrite your key file
+      SaveKey = true, -- The user's key will be saved, but if you change the key, they will be unable to use your script
+      GrabKeyFromSite = true, -- If this is true, set Key below to the RAW site you would like Rayfield to get the key from
+      Key = {"https://pastebin.com/7ByY7VjS"} -- List of keys that the system will accept, can be RAW file links (pastebin, github, etc.) or simple strings ("hello", "key22")
+   }
+})
+
+local AimbotTab = Window:CreateTab("Aimbot", nil) -- Title, Image
+local AimbotSection = Tab:CreateSection("Aimbot")
+local Toggle = Tab:CreateToggle({
+   Name = "Toggle Example",
+   CurrentValue = false,
+   Flag = "Toggle1", -- A flag is the identifier for the configuration file; make sure every element has a different flag if you're using configuration saving to ensure no overlaps
+   Callback = function(Value)
+   local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+
+local function applyESP(character)
+	if not character or character == LocalPlayer.Character then return end
+	
+	local head = character:WaitForChild("Head", 10)
+	if not head then return end
+
+	-- 1. THE HIGHLIGHT (The "Glow")
+	if not character:FindFirstChild("ESPHighlight") then
+		local highlight = Instance.new("Highlight")
+		highlight.Name = "ESPHighlight"
+		highlight.Parent = character
+		highlight.FillColor = Color3.fromRGB(255, 0, 0) -- Red
+		highlight.OutlineColor = Color3.fromRGB(255, 255, 255) -- White Outline
+		highlight.FillTransparency = 0.5
+		highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+	end
+
+	-- 2. THE NAME TAG (The "Username")
+	if not head:FindFirstChild("ESPNameTag") then
+		local player = Players:GetPlayerFromCharacter(character)
+		
+		local billboard = Instance.new("BillboardGui")
+		billboard.Name = "ESPNameTag"
+		billboard.Parent = head
+		billboard.Size = UDim2.new(0, 200, 0, 50)
+		billboard.StudsOffset = Vector3.new(0, 3, 0) -- Position above head
+		billboard.AlwaysOnTop = true -- Vital for wallhacks
+		
+		local label = Instance.new("TextLabel")
+		label.Parent = billboard
+		label.Size = UDim2.new(1, 0, 1, 0)
+		label.BackgroundTransparency = 1
+		label.Text = player.DisplayName or player.Name
+		label.TextColor3 = Color3.fromRGB(255, 255, 255)
+		label.TextStrokeTransparency = 0 -- Makes text easier to read
+		label.TextScaled = true
+		label.Font = Enum.Font.GothamBold
+	end
+end
+
+-- Setup for existing and new players
+local function setupPlayer(player)
+	player.CharacterAdded:Connect(applyESP)
+	if player.Character then applyESP(player.Character) end
+end
+
+Players.PlayerAdded:Connect(setupPlayer)
+for _, player in ipairs(Players:GetPlayers()) do
+	setupPlayer(player)
+end
+   end,
+})
