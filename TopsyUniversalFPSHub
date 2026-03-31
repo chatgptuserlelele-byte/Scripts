@@ -131,3 +131,77 @@ end
 print("ESP Disabled and Cleaned")
    end,
 })
+local Toggle = AimbotTab:CreateToggle({
+   Name = "Toggle ESP",
+   CurrentValue = false,
+   Flag = "Toggle1", 
+   Callback = function(Value)
+       -- The variable (Value) is a boolean on whether the toggle is true or false
+       _G.ESP_Active = Value
+       
+       local Players = game:GetService("Players")
+       local LocalPlayer = Players.LocalPlayer
+
+       -- THE ESP FUNCTION
+       local function applyESP(character)
+           if not _G.ESP_Active or not character or character == LocalPlayer.Character then return end
+           
+           local head = character:WaitForChild("Head", 10)
+           if not head then return end
+
+           -- 1. Red Glow
+           if not character:FindFirstChild("ESPHighlight") then
+               local highlight = Instance.new("Highlight")
+               highlight.Name = "ESPHighlight"
+               highlight.Parent = character
+               highlight.FillColor = Color3.fromRGB(255, 0, 0)
+               highlight.OutlineColor = Color3.fromRGB(255, 255, 255)
+               highlight.FillTransparency = 0.5
+               highlight.DepthMode = Enum.HighlightDepthMode.AlwaysOnTop
+           end
+
+           -- 2. Small Name Tag
+           if not head:FindFirstChild("ESPNameTag") then
+               local player = Players:GetPlayerFromCharacter(character)
+               local billboard = Instance.new("BillboardGui", head)
+               billboard.Name = "ESPNameTag"
+               billboard.Size = UDim2.new(0, 80, 0, 20)
+               billboard.StudsOffset = Vector3.new(0, 2, 0)
+               billboard.AlwaysOnTop = true
+               
+               local label = Instance.new("TextLabel", billboard)
+               label.Size = UDim2.new(1, 0, 1, 0)
+               label.BackgroundTransparency = 1
+               label.Text = player.DisplayName or player.Name
+               label.TextColor3 = Color3.fromRGB(255, 255, 255)
+               label.TextStrokeTransparency = 0.5
+               label.TextSize = 10 -- Small and clean
+               label.Font = Enum.Font.GothamBold
+           end
+       end
+
+       if Value then
+           -- ENABLE LOGIC
+           for _, player in ipairs(Players:GetPlayers()) do
+               if player.Character then applyESP(player.Character) end
+               -- Handles respawning while toggle is ON
+               player.CharacterAdded:Connect(function(char)
+                   if _G.ESP_Active then applyESP(char) end
+               end)
+           end
+       else
+           -- DISABLE LOGIC (Cleanup)
+           for _, player in ipairs(Players:GetPlayers()) do
+               if player.Character then
+                   local h = player.Character:FindFirstChild("ESPHighlight")
+                   if h then h:Destroy() end
+                   
+                   local head = player.Character:FindFirstChild("Head")
+                   if head and head:FindFirstChild("ESPNameTag") then
+                       head.ESPNameTag:Destroy()
+                   end
+               end
+           end
+       end
+   end,
+})
