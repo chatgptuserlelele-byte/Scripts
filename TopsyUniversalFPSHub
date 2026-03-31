@@ -45,7 +45,7 @@ Rayfield:Notify({
    Duration = 5,
    Image = nil,
 })
-local Toggle = Tab:CreateToggle({
+local Toggle = AimbotTab:CreateToggle({
     Name = "Toggle ESP",
     CurrentValue = false,
     Flag = "Toggle1", 
