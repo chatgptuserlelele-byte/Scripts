@@ -45,10 +45,10 @@ Rayfield:Notify({
    Duration = 5,
    Image = nil,
 })
-local Toggle = AimbotTab:CreateToggle({
+local Toggle = Tab:CreateToggle({
    Name = "Aimbot",
    CurrentValue = false,
-   Flag = "AimbotTogglePC", 
+   Flag = "XenoAimbotToggle", 
    Callback = function(Value)
        -- The variable (Value) is a boolean on whether the toggle is true or false
        _G.AimbotEnabled = Value
@@ -58,41 +58,31 @@ local Toggle = AimbotTab:CreateToggle({
        local RunService = game:GetService("RunService")
        local Camera = workspace.CurrentCamera
 
-       -- 1. PC COMPATIBLE FOV CIRCLE (No Drawing.new)
-       if Value then
-           if not _G.PC_FOV_Gui then
-               local ScreenGui = Instance.new("ScreenGui")
-               ScreenGui.Name = "TopsyFOV"
-               ScreenGui.Parent = game:GetService("CoreGui")
-               ScreenGui.IgnoreGuiInset = true
-               
-               local FOVFrame = Instance.new("Frame")
-               FOVFrame.Name = "FOVFrame"
-               FOVFrame.Parent = ScreenGui
-               FOVFrame.AnchorPoint = Vector2.new(0.5, 0.5)
-               FOVFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
-               FOVFrame.BackgroundTransparency = 1 -- Hollow Middle
-               FOVFrame.BorderSizePixel = 0
-               
-               local UICorner = Instance.new("UICorner")
-               UICorner.CornerRadius = UDim.new(1, 0) -- Makes it a circle
-               UICorner.Parent = FOVFrame
-               
-               local UIStroke = Instance.new("UIStroke")
-               UIStroke.Thickness = 1.5
-               UIStroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
-               UIStroke.Parent = FOVFrame
-               
-               _G.PC_FOV_Gui = ScreenGui
-               _G.PC_FOV_Frame = FOVFrame
-               _G.PC_FOV_Stroke = UIStroke
-           end
-           _G.PC_FOV_Frame.Visible = true
-       else
-           if _G.PC_FOV_Frame then
-               _G.PC_FOV_Frame.Visible = false
-           end
+       -- 1. UNIVERSAL FOV CIRCLE (Works on Xeno/PC)
+       local function setupVisuals()
+           local pGui = LocalPlayer:WaitForChild("PlayerGui")
+           local mainGui = pGui:FindFirstChild("TopsyVisuals") or Instance.new("ScreenGui", pGui)
+           mainGui.Name = "TopsyVisuals"
+           mainGui.IgnoreGuiInset = true
+           mainGui.DisplayOrder = 9999 -- Ensures it stays above the game UI
+           
+           local fovFrame = mainGui:FindFirstChild("FOV") or Instance.new("Frame", mainGui)
+           fovFrame.Name = "FOV"
+           fovFrame.AnchorPoint = Vector2.new(0.5, 0.5)
+           fovFrame.BackgroundTransparency = 1 -- Transparent middle
+           
+           local stroke = fovFrame:FindFirstChild("Stroke") or Instance.new("UIStroke", fovFrame)
+           stroke.Name = "Stroke"
+           stroke.Thickness = 2
+           stroke.ApplyStrokeMode = Enum.ApplyStrokeMode.Border
+           
+           local corner = fovFrame:FindFirstChild("Corner") or Instance.new("UICorner", fovFrame)
+           corner.CornerRadius = UDim.new(1, 0) -- Makes it a perfect circle
+           
+           return fovFrame, stroke
        end
+
+       local fovCircle, fovStroke = setupVisuals()
 
        -- 2. TARGETING LOGIC
        local function getClosestPlayer()
@@ -108,7 +98,7 @@ local Toggle = AimbotTab:CreateToggle({
                        local mousePos = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
                        local distance = (Vector2.new(screenPoint.X, screenPoint.Y) - mousePos).Magnitude
 
-                       -- Checks against the Slider value
+                       -- Check if player is inside the FOV Slider range
                        if distance < (_G.AimbotFOV or 100) then
                            if distance < shortestDistance then
                                closestPlayer = player
@@ -121,32 +111,33 @@ local Toggle = AimbotTab:CreateToggle({
            return closestPlayer
        end
 
-       -- 3. THE LOOP
-       RunService:BindToRenderStep("AimbotLoop", Enum.RenderPriority.Camera.Value, function()
-           if _G.AimbotEnabled then
-               -- Update FOV Visuals
-               if _G.PC_FOV_Frame then
-                   local center = Vector2.new(Camera.ViewportSize.X / 2, Camera.ViewportSize.Y / 2)
-                   _G.PC_FOV_Frame.Position = UDim2.new(0, center.X, 0, center.Y)
-                   
+       -- 3. THE MAIN LOOP (Runs while Toggle is True)
+       if Value then
+           fovCircle.Visible = true
+           
+           RunService:BindToRenderStep("XenoAimbot", Enum.RenderPriority.Camera.Value, function()
+               if _G.AimbotEnabled then
+                   -- Update Visuals (Size, Position, Color)
                    local size = (_G.AimbotFOV or 100) * 2
-                   _G.PC_FOV_Frame.Size = UDim2.new(0, size, 0, size)
-                   _G.PC_FOV_Stroke.Color = _G.FOV_Circle_Color or Color3.fromRGB(255, 255, 255)
+                   fovCircle.Size = UDim2.new(0, size, 0, size)
+                   fovCircle.Position = UDim2.new(0, Camera.ViewportSize.X / 2, 0, Camera.ViewportSize.Y / 2)
+                   fovStroke.Color = _G.FOV_Circle_Color or Color3.fromRGB(255, 0, 0)
+                   
+                   -- Handle Snapping
+                   local target = getClosestPlayer()
+                   if target and target.Character and target.Character:FindFirstChild("Head") then
+                       Camera.CFrame = CFrame.new(Camera.CFrame.Position, target.Character.Head.Position)
+                   end
+               else
+                   -- Cleanup
+                   fovCircle.Visible = false
+                   RunService:UnbindFromRenderStep("XenoAimbot")
                end
-
-               -- Aim at target
-               local target = getClosestPlayer()
-               if target and target.Character and target.Character:FindFirstChild("Head") then
-                   Camera.CFrame = CFrame.new(Camera.CFrame.Position, target.Character.Head.Position)
-               end
-           else
-               if _G.PC_FOV_Frame then _G.PC_FOV_Frame.Visible = false end
-               RunService:UnbindFromRenderStep("AimbotLoop")
-           end
-       end)
-
-       if not Value then
-           RunService:UnbindFromRenderStep("AimbotLoop")
+           end)
+       else
+           -- Force Hide when toggled off
+           fovCircle.Visible = false
+           RunService:UnbindFromRenderStep("XenoAimbot")
        end
    end,
 })
@@ -373,24 +364,4 @@ local Toggle = ESPTab:CreateToggle({
            if screenGui then screenGui:Destroy() end
        end
    end,
-})
-local ColorPicker = ESPTab:CreateColorPicker({
-    Name = "Tracer Color",
-    Color = Color3.fromRGB(255, 255, 255),
-    Flag = "TracerColorPicker1", 
-    Callback = function(Value)
-        -- The function that takes place every time the color picker is moved/changed
-        -- The variable (Value) is a Color3fromRGB value based on which color is selected
-        
-        _G.Tracer_Color = Value -- Update the global variable for the loop
-        
-        -- Immediately update all active tracer lines
-        if _G.TracerLines then
-            for _, line in pairs(_G.TracerLines) do
-                if line then
-                    line.Color = Value
-                end
-            end
-        end
-    end
 })
