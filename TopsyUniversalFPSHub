@@ -38,11 +38,19 @@ local Window = Rayfield:CreateWindow({
 })
 
 local AimbotTab = Window:CreateTab("Aimbot", nil) -- Title, Image
-local AimbotSection = Tab:CreateSection("Aimbot")
-local Button = Tab:CreateButton({
-   Name = "Button Example",
-   Callback = function()
-  local Players = game:GetService("Players")
+local AimbotSection = AimbotTab:CreateSection("Aimbot")
+Rayfield:Notify({
+   Title = "Script Executed",
+   Content = "Universal FPS Hub by Topsy executed!",
+   Duration = 5,
+   Image = nil,
+})
+local Toggle = AimbotTab:CreateToggle({
+   Name = "Toggle ESP",
+   CurrentValue = false,
+   Flag = "Toggle1", -- A flag is the identifier for the configuration file; make sure every element has a different flag if you're using configuration saving to ensure no overlaps
+   Callback = function(Value)
+   local Players = game:GetService("Players")
 local LocalPlayer = Players.LocalPlayer
 
 local function applyESP(character)
@@ -95,5 +103,6 @@ Players.PlayerAdded:Connect(setupPlayer)
 for _, player in ipairs(Players:GetPlayers()) do
 	setupPlayer(player)
 end
+   -- The variable (Value) is a boolean on whether the toggle is true or false
    end,
 })
