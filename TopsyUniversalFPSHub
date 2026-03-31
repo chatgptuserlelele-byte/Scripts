@@ -353,23 +353,3 @@ local Toggle = ESPTab:CreateToggle({
        end
    end,
 })
-local ColorPicker = ESPTab:CreateColorPicker({
-    Name = "Tracer Color",
-    Color = Color3.fromRGB(255, 255, 255),
-    Flag = "TracerColorPicker1", 
-    Callback = function(Value)
-        -- The function that takes place every time the color picker is moved/changed
-        -- The variable (Value) is a Color3fromRGB value based on which color is selected
-        
-        _G.Tracer_Color = Value -- Update the global variable for the loop
-        
-        -- Immediately update all active tracer lines
-        if _G.TracerLines then
-            for _, line in pairs(_G.TracerLines) do
-                if line then
-                    line.Color = Value
-                end
-            end
-        end
-    end
-})
